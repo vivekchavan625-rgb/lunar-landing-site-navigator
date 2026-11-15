@@ -1,7 +1,10 @@
 import type { ApiError, CalcEvent, CalcRun, CalculationInput, Sample, Site } from "../types/api";
 
+const API_BASE = (import.meta.env.VITE_API_URL as string) || "/api/v1";
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(`/api/v1${path}`, { credentials: "include", headers: { "content-type": "application/json" }, ...init });
+  const url = API_BASE.endsWith("/api/v1") && path.startsWith("/") ? `${API_BASE}${path}` : `${API_BASE}${path}`;
+  const r = await fetch(url, { credentials: "include", headers: { "content-type": "application/json" }, ...init });
   if (!r.ok) { const e = (await r.json().catch(() => null)) as ApiError | null; throw new Error(e?.error?.message ?? `HTTP ${r.status}`); }
   return r.status === 204 ? (undefined as T) : r.json();
 }
