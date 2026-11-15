@@ -34,7 +34,8 @@ export function buildApp() {
   
   app.use("/api/v1", system);
 
-  const swaggerDocument = YAML.load(path.join(__dirname, "../../../docs/openapi.yaml"));
+  const swaggerPath = path.resolve(process.cwd(), "docs", "openapi.yaml");
+  const swaggerDocument = YAML.load(swaggerPath);
   app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
   const api = express.Router();
