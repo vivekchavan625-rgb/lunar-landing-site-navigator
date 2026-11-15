@@ -1,0 +1,12 @@
+CREATE INDEX idx_sites_coords ON landing_sites (latitude, longitude);
+CREATE INDEX idx_sites_category ON landing_sites (mission_category);
+CREATE INDEX idx_sites_owner ON landing_sites (owner_user_id);
+CREATE INDEX idx_kernels_coverage ON spice_kernels (coverage_start, coverage_end) WHERE active;
+CREATE INDEX idx_terrain_active ON terrain_datasets (active);
+CREATE INDEX idx_scenarios_owner ON mission_scenarios (user_id, created_at DESC);
+CREATE INDEX idx_calc_owner_status ON calculation_runs (user_id, status);
+CREATE INDEX idx_calc_created ON calculation_runs (created_at DESC);
+CREATE UNIQUE INDEX uq_calc_dedupe ON calculation_runs (user_id, request_hash) WHERE status IN ('QUEUED','RUNNING','COMPLETED');
+CREATE INDEX idx_samples_calc_time ON environmental_samples (calculation_id, sample_time);
+CREATE INDEX idx_events_calc_time ON calculation_events (calculation_id, event_time);
+CREATE INDEX idx_comparisons_owner ON comparison_groups (user_id);

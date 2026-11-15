@@ -1,0 +1,14 @@
+---
+description: Lunar Landing Site Navigator — non-negotiable rules
+alwaysApply: true
+---
+- Read /CURSOR_PROMPT.md first; it is the source of truth for scope, phases and acceptance tests.
+- Never fabricate scientific values. Missing kernel/DEM => explicit error or null + warning, never a plausible-looking number.
+- All scientific geometry lives in science-engine (SpiceyPy). Do NOT reimplement ephemerides in JS/TS. The frontend only renders backend results.
+- Angles in degrees at API boundaries; distances carry units in field names (km, m). Planetocentric latitude only; reject anything else.
+- UTC -> ET only via SPICE str2et with the loaded LSK. No manual second offsets.
+- Every result carries provenance (frame, kernels, method/fidelity level, warnings). UI must show the fidelity level.
+- Do not assign Earth EPSG codes to lunar data. Do not silently substitute a nearby DEM.
+- DB access only as app_user (NOBYPASSRLS) inside withUser(). Parameterized SQL only.
+- Do not claim a feature works until a test you ran proves it; report real command output.
+- Do not commit kernels, DEMs, or secrets.

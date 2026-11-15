@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info: { title: Lunar Landing Site Navigator API, version: 0.1.0, description: "Base /api/v1. Guest session via httpOnly cookie lsn_guest. Angles in degrees; distances unit-suffixed." }
+servers: [{ url: /api/v1 }]
+paths:
+  /health: { get: { summary: Liveness, responses: { "200": { description: ok } } } }
+  /ready: { get: { summary: DB + science engine + kernel readiness, responses: { "200": { description: ready }, "503": { description: not ready } } } }
+  /version: { get: { summary: Version, responses: { "200": { description: ok } } } }
+  /sites:
+    get: { summary: List curated + own custom sites, parameters: [{ name: category, in: query, schema: { type: string } }], responses: { "200": { description: ok } } }
+  /sites/{id}: { get: { responses: { "200": { description: ok }, "404": { $ref: '#/components/responses/NotFound' } } }, delete: { summary: Delete own custom site only, responses: { "204": { description: deleted }, "404": { $ref: '#/components/responses/NotFound' } } } }
+  /sites/custom: { post: { requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSite' } } } }, responses: { "201": { description: created }, "400": { $ref: '#/components/responses/Validation' } } } }
+  /calculations:
+    post:
+      summary: Run (or return cached/deduplicated) calculation
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CalculationRequest' } } } }
+      responses:
+        "201": { description: computed now, content: { application/json: { schema: { $ref: '#/components/schemas/CalculationHandle' } } } }
+        "200": { description: identical request already exists (cached=true) }
+        "400": { $ref: '#/components/responses/Validation' }
+        "422": { description: "Kernel coverage / scientific precondition failed (code KERNEL_COVERAGE)" }
+        "502": { description: science engine error/unreachable }
+        "503": { description: kernels unavailable (code KERNEL_UNAVAILABLE) }
+        "504": { description: science engine timeout }
+  /calculations/{id}: { get: { responses: { "200": { description: run + provenance + summary }, "404": { $ref: '#/components/responses/NotFound' } } } }
+  /calculations/{id}/status: { get: { responses: { "200": { description: status } } } }
+  /calculations/{id}/timeseries: { get: { parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer, maximum: 5000 } }], responses: { "200": { description: paginated samples } } } }
+  /calculations/{id}/events: { get: { responses: { "200": { description: events with refinementToleranceSeconds } } } }
+  /comparisons: { post: { summary: "TODO: up to 3 sites, same time config", responses: { "501": { description: not implemented } } } }
+  /scenarios: { get: { responses: { "200": { description: paginated } } }, post: { responses: { "201": { description: created }, "400": { $ref: '#/components/responses/Validation' } } } }
+  /scenarios/{id}: { get: { responses: { "200": { description: ok }, "404": { $ref: '#/components/responses/NotFound' } } }, put: { responses: { "200": { description: ok } } }, delete: { responses: { "204": { description: ok } } } }
+  /data-sources: { get: { responses: { "200": { description: references } } } }
+  /data-sources/kernels: { get: { responses: { "200": { description: catalog + live engine kernels/coverage } } } }
+  /data-sources/terrain: { get: { responses: { "200": { description: datasets or explicit none-available note } } } }
+  /data-sources/status: { get: { responses: { "200": { description: ok } } } }
+  /reports/{calculationId}/json: { get: { responses: { "200": { description: full record } } } }
+  /reports/{calculationId}/csv: { get: { responses: { "200": { description: CSV with provenance header comments } } } }
+  /reports/{calculationId}/pdf: { post: { responses: { "501": { description: TODO } } } }
+components:
+  responses:
+    NotFound: { description: not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Validation: { description: invalid input, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  schemas:
+    Error: { type: object, required: [error], properties: { error: { type: object, required: [code, message], properties: { code: { type: string }, message: { type: string }, requestId: { type: string }, details: {} } } } }
+    CalculationHandle: { type: object, properties: { id: { type: string, format: uuid }, status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED] }, cached: { type: boolean } } }
+    CustomSite: { type: object, required: [name, latitude, longitude, latitudeType], properties: { name: { type: string }, latitude: { type: number, minimum: -90, maximum: 90 }, longitude: { type: number, minimum: -180, maximum: 180 }, elevationM: { type: number, nullable: true }, latitudeType: { type: string, enum: [PLANETOCENTRIC] }, coordinateFrame: { type: string, enum: [MOON_ME, MOON_PA] } } }
+    CalculationRequest:
+      type: object
+      required: [site, time, analysis]
+      properties:
+        site: { type: object, required: [latitude, longitude, coordinateType], properties: { latitude: { type: number, minimum: -90, maximum: 90 }, longitude: { type: number, minimum: -180, maximum: 180 }, elevationM: { type: number, nullable: true }, coordinateType: { type: string, enum: [PLANETOCENTRIC] }, bodyFrame: { type: string, enum: [MOON_ME, MOON_PA], default: MOON_ME } } }
+        time: { type: object, required: [utc], properties: { utc: { type: string, format: date-time, description: "ISO-8601 WITH offset; stored as UTC" }, timezone: { type: string } } }
+        analysis: { type: object, required: [durationHours, samplingMinutes], properties: { durationHours: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 1440 }, samplingMinutes: { type: number, minimum: 1, maximum: 1440 }, terrainAnalysis: { type: boolean }, eventPrecisionSeconds: { type: number } }, description: "durationHours*60/samplingMinutes+1 must be <= 20000" }
+        solarPanel: { type: object, properties: { enabled: { type: boolean }, areaM2: { type: number }, efficiency: { type: number, maximum: 1 }, derating: { type: number }, tracking: { type: boolean }, tiltDeg: { type: number }, azimuthDeg: { type: number } }, description: "areaM2+efficiency required when enabled" }

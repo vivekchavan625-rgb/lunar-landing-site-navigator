@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+data/kernels/*
+!data/kernels/mission.tm
+!data/kernels/.gitkeep
+data/terrain/*
+!data/terrain/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep

@@ -1,0 +1,16 @@
+{
+  "_note": "Names/URLs are the EXPECTED NAIF files. Verify against the NAIF directory listings before relying on them; do not hardcode versions elsewhere. Lunar PCK and lunar FK MUST be a matching pair (same DE release tag).",
+  "listings": [
+    "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/",
+    "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/",
+    "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/",
+    "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/"
+  ],
+  "kernels": [
+    {"name": "naif0012.tls", "type": "LSK", "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls"},
+    {"name": "de440s.bsp", "type": "SPK", "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp", "compatible_ephemeris": "DE440"},
+    {"name": "pck00011.tpc", "type": "PCK-TEXT", "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc"},
+    {"name": "moon_pa_de440_200625.bpc", "type": "PCK-BINARY", "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de440_200625.bpc", "compatible_ephemeris": "DE440", "pair_with": "moon_de440_250416.tf"},
+    {"name": "moon_de440_250416.tf", "type": "FK", "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_250416.tf", "compatible_ephemeris": "DE440", "pair_with": "moon_pa_de440_200625.bpc", "verify_listing": true}
+  ]
+}
