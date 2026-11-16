@@ -6,14 +6,6 @@ import { calculate, ScienceError } from "../services/science.js";
 
 export const calculations = Router();
 
-import { Router } from "express";
-import { CalculationRequest } from "../validators/calculation.js";
-import { withUser } from "../database/pool.js";
-import { requestHash } from "../services/hash.js";
-import { calculate, ScienceError } from "../services/science.js";
-
-export const calculations = Router();
-
 calculations.post("/", async (req: any, res, next) => {
   const parsed = CalculationRequest.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "VALIDATION", message: "invalid request", details: parsed.error.flatten(), requestId: req.id } });
@@ -62,40 +54,40 @@ calculations.post("/", async (req: any, res, next) => {
   } catch (e) { next(e); }
 });
 
-calculations.get("/:id", async (req, res, next) => {
+calculations.get("/:id", async (req: any, res, next) => {
   try {
-    const r = await withUser(req.userId, (c) => c.query("SELECT id,status,calculation_model,input_parameters,result_summary,provenance,quality_metadata,error_code,error_message,created_at,completed_at FROM calculation_runs WHERE id=$1", [req.params.id]));
+    const r = (await withUser(req.userId, (c) => c.query("SELECT id,status,calculation_model,input_parameters,result_summary,provenance,quality_metadata,error_code,error_message,created_at,completed_at FROM calculation_runs WHERE id=$1", [req.params.id]))) as { rows: any[] };
     if (!r.rows[0]) return res.status(404).json({ error: { code: "NOT_FOUND", message: "calculation not found", requestId: req.id } });
     res.json(r.rows[0]);
-  } catch (e) { next(e); }
+  } catch (e: any) { next(e); }
 });
 
-calculations.get("/:id/status", async (req, res, next) => {
+calculations.get("/:id/status", async (req: any, res, next) => {
   try {
-    const r = await withUser(req.userId, (c) => c.query("SELECT id,status,error_code,error_message FROM calculation_runs WHERE id=$1", [req.params.id]));
+    const r = (await withUser(req.userId, (c) => c.query("SELECT id,status,error_code,error_message FROM calculation_runs WHERE id=$1", [req.params.id]))) as { rows: any[] };
     if (!r.rows[0]) return res.status(404).json({ error: { code: "NOT_FOUND", message: "calculation not found" } });
     res.json(r.rows[0]);
-  } catch (e) { next(e); }
+  } catch (e: any) { next(e); }
 });
 
-calculations.get("/:id/timeseries", async (req, res, next) => {
+calculations.get("/:id/timeseries", async (req: any, res, next) => {
   try {
     const page = Math.max(1, Number(req.query.page ?? 1)); const size = Math.min(5000, Number(req.query.pageSize ?? 1000));
-    const r = await withUser(req.userId, (c) => c.query(
+    const r = (await withUser(req.userId, (c) => c.query(
       `SELECT sample_time AS "timestampUTC", solar_elevation_deg AS "solarElevationDeg", solar_azimuth_deg AS "solarAzimuthDeg",
               earth_elevation_deg AS "earthElevationDeg", earth_azimuth_deg AS "earthAzimuthDeg", solar_irradiance_w_m2 AS "solarIrradianceWm2",
               terrain_illumination_fraction AS "solarVisibilityFraction", earth_disk_visibility_fraction AS "earthVisibilityFraction",
               estimated_panel_power_w AS "estimatedPanelPowerW", calculation_quality AS "calculationQuality"
-       FROM environmental_samples WHERE calculation_id=$1 ORDER BY sample_time LIMIT $2 OFFSET $3`, [req.params.id, size, (page - 1) * size]));
+       FROM environmental_samples WHERE calculation_id=$1 ORDER BY sample_time LIMIT $2 OFFSET $3`, [req.params.id, size, (page - 1) * size]))) as { rows: any[] };
     res.json({ page, pageSize: size, items: r.rows });
-  } catch (e) { next(e); }
+  } catch (e: any) { next(e); }
 });
 
-calculations.get("/:id/events", async (req, res, next) => {
+calculations.get("/:id/events", async (req: any, res, next) => {
   try {
-    const r = await withUser(req.userId, (c) => c.query(
+    const r = (await withUser(req.userId, (c) => c.query(
       `SELECT event_type AS type, event_time AS "timeUTC", event_value AS "refinementToleranceSeconds", event_metadata AS metadata
-       FROM calculation_events WHERE calculation_id=$1 ORDER BY event_time`, [req.params.id]));
+       FROM calculation_events WHERE calculation_id=$1 ORDER BY event_time`, [req.params.id]))) as { rows: any[] };
     res.json({ items: r.rows });
-  } catch (e) { next(e); }
+  } catch (e: any) { next(e); }
 });
