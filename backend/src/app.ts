@@ -34,9 +34,13 @@ export function buildApp() {
   
   app.use("/api/v1", system);
 
-  const swaggerPath = path.resolve(process.cwd(), "docs", "openapi.yaml");
-  const swaggerDocument = YAML.load(swaggerPath);
-  app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  try {
+    const swaggerPath = path.resolve(process.cwd(), "docs", "openapi.yaml");
+    const swaggerDocument = YAML.load(swaggerPath);
+    app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  } catch (err) {
+    console.warn("Swagger docs not found, skipping...", err);
+  }
 
   const api = express.Router();
   api.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
