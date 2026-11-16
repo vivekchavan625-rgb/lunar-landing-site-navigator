@@ -14,16 +14,16 @@ system.get("/ready", async (_req, res) => {
   res.status(out.database && out.scienceEngine ? 200 : 503).json(out);
 });
 
-dataSources.get("/kernels", async (req, res, next) => {
+dataSources.get("/kernels", async (req: any, res, next) => {
   try {
-    const db = await withUser(req.userId, (c) => c.query("SELECT kernel_name AS name,kernel_type AS type,version,source_url AS \"sourceUrl\",checksum_sha256 AS sha256,coverage_start AS \"coverageStart\",coverage_end AS \"coverageEnd\",active FROM spice_kernels ORDER BY kernel_type,kernel_name"));
+    const db = (await withUser(req.userId, (c) => c.query("SELECT kernel_name AS name,kernel_type AS type,version,source_url AS \"sourceUrl\",checksum_sha256 AS sha256,coverage_start AS \"coverageStart\",coverage_end AS \"coverageEnd\",active FROM spice_kernels ORDER BY kernel_type,kernel_name"))) as { rows: any[] };
     let live: any = null;
     try { const r = await fetch(`${env.SCIENCE_ENGINE_URL}/v1/kernels`, { signal: AbortSignal.timeout(5000) }); live = r.ok ? await r.json() : { error: "engine reports kernels unavailable" }; } catch { live = { error: "science engine unreachable" }; }
     res.json({ catalog: db.rows, engine: live });
   } catch (e) { next(e); }
 });
-dataSources.get("/terrain", async (req, res, next) => {
-  try { const r = await withUser(req.userId, (c) => c.query("SELECT * FROM terrain_datasets ORDER BY dataset_name"));
+dataSources.get("/terrain", async (req: any, res, next) => {
+  try { const r = (await withUser(req.userId, (c) => c.query("SELECT * FROM terrain_datasets ORDER BY dataset_name"))) as { rows: any[] };
     res.json({ items: r.rows, note: r.rows.length ? undefined : "No terrain datasets registered: terrain-aware outputs are unavailable (GEOMETRIC mode only)." });
   } catch (e) { next(e); }
 });

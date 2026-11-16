@@ -6,20 +6,27 @@ import { calculate, ScienceError } from "../services/science.js";
 
 export const calculations = Router();
 
-calculations.post("/", async (req, res, next) => {
+import { Router } from "express";
+import { CalculationRequest } from "../validators/calculation.js";
+import { withUser } from "../database/pool.js";
+import { requestHash } from "../services/hash.js";
+import { calculate, ScienceError } from "../services/science.js";
+
+export const calculations = Router();
+
+calculations.post("/", async (req: any, res, next) => {
   const parsed = CalculationRequest.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "VALIDATION", message: "invalid request", details: parsed.error.flatten(), requestId: req.id } });
   const body = parsed.data;
   const hash = requestHash(body);
   try {
-    // cache / dedupe (per user because of RLS)
     const existing = await withUser(req.userId, (c) => c.query(
-      "SELECT id,status FROM calculation_runs WHERE request_hash=$1 AND status IN ('COMPLETED','RUNNING','QUEUED') LIMIT 1", [hash]));
+      "SELECT id,status FROM calculation_runs WHERE request_hash=$1 AND status IN ('COMPLETED','RUNNING','QUEUED') LIMIT 1", [hash])) as { rows: any[] };
     if (existing.rows[0]) return res.status(200).json({ id: existing.rows[0].id, status: existing.rows[0].status, cached: true });
 
     const id = await withUser(req.userId, async (c) => (await c.query(
       `INSERT INTO calculation_runs(user_id,request_hash,status,calculation_model,geometry_method,input_parameters,started_at)
-       VALUES ($1,$2,'RUNNING','PENDING','PENDING',$3,now()) RETURNING id`, [req.userId, hash, body])).rows[0].id as string);
+       VALUES ($1,$2,'RUNNING','PENDING','PENDING',$3,now()) RETURNING id`, [req.userId, hash, body]) as { rows: any[] }).rows[0].id as string);
 
     try {
       const out = await calculate(body, String(req.id));
@@ -28,11 +35,10 @@ calculations.post("/", async (req, res, next) => {
           `UPDATE calculation_runs SET status='COMPLETED', calculation_model=$2, geometry_method=$3, provenance=$4, quality_metadata=$5,
              result_summary=$6, completed_at=now() WHERE id=$1`,
           [id, out.provenance.calculationMethod, "SPICE spkpos " + out.provenance.aberrationCorrection, out.provenance, out.quality, out.energy]);
-        // bulk insert samples
         const S = out.samples as any[];
         for (let i = 0; i < S.length; i += 500) {
           const chunk = S.slice(i, i + 500); const vals: any[] = []; const rows: string[] = [];
-          chunk.forEach((s, j) => { const o = j * 12;
+          chunk.forEach((s: any, j: number) => { const o = j * 12;
             rows.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},$${o+9},$${o+10},$${o+11},$${o+12})`);
             vals.push(id, s.timestampUTC, s.ephemerisTimeSeconds, s.solarAzimuthDeg, s.solarGeometricElevationDeg, s.earthAzimuthDeg,
               s.earthCenterElevationDeg, s.solarIrradianceWm2, out.quality.calculationMode === "GEOMETRIC" ? null : s.solarVisibilityFraction, s.earthDiskVisibilityFraction,
@@ -46,7 +52,8 @@ calculations.post("/", async (req, res, next) => {
             [id, e.type, e.timeUTC, e.refinementToleranceSeconds, { ephemerisTimeSeconds: e.ephemerisTimeSeconds, definition: e.definition }]);
       });
       return res.status(201).json({ id, status: "COMPLETED", cached: false });
-    } catch (e: any) {
+    } catch (err: unknown) {
+      const e = err as any;
       const code = e instanceof ScienceError ? e.code : "INTERNAL";
       await withUser(req.userId, (c) => c.query("UPDATE calculation_runs SET status='FAILED', error_code=$2, error_message=$3, completed_at=now() WHERE id=$1",
         [id, code, e.message])).catch(() => {});
